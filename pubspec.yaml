@@ -3,7 +3,7 @@ description: >
   Flutter plugin for image/video compression and album media picking.
   Extracted for reuse from yunzhiheyi/video_compressor; targets chat SDK presets
   (720p / ~1.5Mbps video, long-edge 2048 image + 512 thumb).
-version: 1.0.0
+version: 1.1.0
 homepage: https://github.com/yunzhiheyi/media_compressor
 repository: https://github.com/yunzhiheyi/media_compressor
 issue_tracker: https://github.com/yunzhiheyi/media_compressor/issues
@@ -21,7 +21,7 @@ dependencies:
   photo_manager: ^3.8.3
   file_picker: ^10.3.10
   flutter_image_compress: ^2.4.0
-  ffmpeg_kit_flutter_new: ^4.1.0
+  ffmpeg_kit_flutter_new_min: ^3.4.0
 
 dev_dependencies:
   flutter_test:

@@ -2,10 +2,10 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:ffmpeg_kit_flutter_new/ffmpeg_kit.dart';
-import 'package:ffmpeg_kit_flutter_new/ffprobe_kit.dart';
-import 'package:ffmpeg_kit_flutter_new/return_code.dart';
-import 'package:ffmpeg_kit_flutter_new/statistics.dart';
+import 'package:ffmpeg_kit_flutter_new_min/ffmpeg_kit.dart';
+import 'package:ffmpeg_kit_flutter_new_min/ffprobe_kit.dart';
+import 'package:ffmpeg_kit_flutter_new_min/return_code.dart';
+import 'package:ffmpeg_kit_flutter_new_min/statistics.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -17,7 +17,8 @@ import '../models/video_info.dart';
 /// Hardware-accelerated video probe / compress / poster extraction via FFmpeg.
 ///
 /// Logic ported from yunzhiheyi/video_compressor `FFmpegService`, cleaned for
-/// plugin reuse. Android uses libx264; Apple platforms use h264_videotoolbox.
+/// plugin reuse. Android uses h264_mediacodec; Apple platforms use
+/// h264_videotoolbox — both hardware encoders on the LGPL min build.
 class VideoCompressor {
   VideoCompressor();
 
@@ -372,16 +373,22 @@ class VideoCompressor {
     final buffer = StringBuffer();
     buffer.write('-i "$inputPath"');
 
+    // 双端硬件编码器(min/LGPL 构建无 libx264,也不允许引入 GPL 软编):
+    // Android 走 MediaCodec,Apple 走 VideoToolbox
     final videoCodec =
-        Platform.isAndroid ? 'libx264' : 'h264_videotoolbox';
+        Platform.isAndroid ? 'h264_mediacodec' : 'h264_videotoolbox';
     buffer.write(' -c:v $videoCodec');
 
     final targetBitrate = bitrate <= 0 ? 1500000 : bitrate;
     buffer.write(' -b:v $targetBitrate');
     buffer.write(' -maxrate ${(targetBitrate * 1.3).toInt()}');
     buffer.write(' -bufsize ${(targetBitrate * 2.5).toInt()}');
-    buffer.write(' -profile:v high');
-    buffer.write(' -level 4.2');
+    if (!Platform.isAndroid) {
+      // profile/level 只对 videotoolbox 下发;mediacodec 对无效参数直接报错,
+      // 交给设备默认 profile 更稳
+      buffer.write(' -profile:v high');
+      buffer.write(' -level 4.2');
+    }
     buffer.write(' -c:a aac');
     buffer.write(' -b:a $audioBitrate');
 
