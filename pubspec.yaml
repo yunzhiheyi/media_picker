@@ -27,7 +27,7 @@ dependencies:
   hero_media_viewer:
     git:
       url: https://github.com/yunzhiheyi/hero_media_viewer.git
-      ref: d5ce1daaec9da706ecf83adfa72af4eea4940481
+      ref: main
 
 dev_dependencies:
   flutter_test:
