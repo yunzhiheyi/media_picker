@@ -1,6 +1,8 @@
-# media_compressor
+# media_picker
 
-Flutter plugin for **image / video compression** and **album media picking**.
+Flutter package for **image / video selection**, **Hero preview**, and
+**compression**. The host application owns attachment-entry UI and calls the
+image/video APIs it needs.
 
 Extracted for reuse from [yunzhiheyi/video_compressor](https://github.com/yunzhiheyi/video_compressor) (full app → maintainable plugin). Designed to pair with chat SDKs (e.g. MaxAgent) and viewers such as [hero_media_viewer](https://github.com/yunzhiheyi/hero_media_viewer) / [brighton_video_player](https://pub.dev/packages/brighton_video_player).
 
@@ -10,20 +12,23 @@ Extracted for reuse from [yunzhiheyi/video_compressor](https://github.com/yunzhi
 |---|---|
 | `ImageCompressor` | Re-encode JPEG/WebP/PNG; strips EXIF/GPS |
 | `VideoCompressor` | Probe / compress (H.264+AAC, faststart) / poster frame |
-| `MediaPicker` | Album grid (iOS/Android) or file dialog (desktop) |
+| `MediaPicker` | Separate image/video picker APIs; Hero image/video preview |
 | `MediaCompressPresets` | Chat defaults (2048 image / 512 thumb / 720p@1.5Mbps) |
 
 ## Install
 
 ```yaml
 dependencies:
-  media_compressor:
+  media_picker:
     git:
-      url: https://github.com/yunzhiheyi/media_compressor.git
+      url: https://github.com/yunzhiheyi/media_picker.git
       ref: v1.0.0
 ```
 
 ### iOS host `Info.plist`
+
+The compression dependency requires an iOS 14.0 deployment target. Hosts that
+use static CocoaPods linking should also enable `use_modular_headers!`.
 
 ```xml
 <key>NSPhotoLibraryUsageDescription</key>
@@ -37,12 +42,11 @@ Plugin merges `READ_MEDIA_IMAGES` / `READ_MEDIA_VIDEO` (and legacy storage ≤32
 ## Quick start
 
 ```dart
-import 'package:media_compressor/media_compressor.dart';
+import 'package:media_picker/media_picker.dart';
 
 // Pick up to 6 images
-final images = await MediaPicker.pick(
+final images = await MediaPicker.pickImages(
   context,
-  type: MediaPickType.image,
   maxCount: 6,
 );
 
@@ -57,11 +61,7 @@ final thumb = await ImageCompressor.compressFile(
 );
 
 // Video
-final videos = await MediaPicker.pick(
-  context,
-  type: MediaPickType.video,
-  maxCount: 1,
-);
+final videos = await MediaPicker.pickVideo(context);
 final compressor = VideoCompressor();
 final video = await compressor.compress(
   inputPath: videos.first.path,

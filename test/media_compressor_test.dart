@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:media_compressor/media_compressor.dart';
+import 'package:media_picker/media_picker.dart';
 
 void main() {
   test('chat presets match SDK media table', () {

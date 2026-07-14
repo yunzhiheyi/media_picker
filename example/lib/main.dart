@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:media_compressor/media_compressor.dart';
+import 'package:media_picker/media_picker.dart';
 
 void main() {
   runApp(const MediaCompressorDemoApp());
@@ -11,7 +11,7 @@ class MediaCompressorDemoApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'media_compressor example',
+      title: 'media_picker example',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1A73E8)),
         useMaterial3: true,
@@ -101,7 +101,7 @@ class _DemoHomePageState extends State<DemoHomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('media_compressor')),
+      appBar: AppBar(title: const Text('media_picker')),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -121,7 +121,10 @@ class _DemoHomePageState extends State<DemoHomePage> {
             const SizedBox(height: 16),
             Expanded(
               child: SingleChildScrollView(
-                child: Text(_log, style: const TextStyle(fontFamily: 'monospace')),
+                child: Text(
+                  _log,
+                  style: const TextStyle(fontFamily: 'monospace'),
+                ),
               ),
             ),
           ],

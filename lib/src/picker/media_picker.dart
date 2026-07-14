@@ -8,6 +8,24 @@ import 'media_picker_page.dart';
 class MediaPicker {
   MediaPicker._();
 
+  /// Opens an image-only album picker. The caller owns its entry UI and limit.
+  static Future<List<PickedMedia>> pickImages(
+    BuildContext context, {
+    int maxCount = 1,
+    String title = 'Select photos',
+  }) => pick(
+    context,
+    type: MediaPickType.image,
+    maxCount: maxCount,
+    title: title,
+  );
+
+  /// Opens a single-video album picker with the same Hero preview behaviour.
+  static Future<List<PickedMedia>> pickVideo(
+    BuildContext context, {
+    String title = 'Select video',
+  }) => pick(context, type: MediaPickType.video, maxCount: 1, title: title);
+
   /// Opens a full-screen picker and returns selected media (empty if cancelled).
   static Future<List<PickedMedia>> pick(
     BuildContext context, {
@@ -18,16 +36,15 @@ class MediaPicker {
     final result = await Navigator.of(context).push<List<PickedMedia>>(
       MaterialPageRoute(
         fullscreenDialog: true,
-        builder: (_) => MediaPickerPage(
-          type: type,
-          maxCount: maxCount,
-          title: title,
-        ),
+        builder:
+            (_) =>
+                MediaPickerPage(type: type, maxCount: maxCount, title: title),
       ),
     );
     return result ?? const [];
   }
 
   /// Request photo-library permission (no-op success on unsupported platforms).
-  static Future<bool> requestPermission() => MediaPickerPage.requestPermission();
+  static Future<bool> requestPermission() =>
+      MediaPickerPage.requestPermission();
 }

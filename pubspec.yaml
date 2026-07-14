@@ -1,12 +1,12 @@
-name: media_compressor
+name: media_picker
 description: >
-  Flutter plugin for image/video compression and album media picking.
-  Extracted for reuse from yunzhiheyi/video_compressor; targets chat SDK presets
-  (720p / ~1.5Mbps video, long-edge 2048 image + 512 thumb).
+  Flutter media picker with image/video Hero preview, plus reusable image and
+  video compression APIs. Chat-oriented presets are included but optional.
 version: 1.0.0
-homepage: https://github.com/yunzhiheyi/media_compressor
-repository: https://github.com/yunzhiheyi/media_compressor
-issue_tracker: https://github.com/yunzhiheyi/media_compressor/issues
+homepage: https://github.com/yunzhiheyi/media_picker
+repository: https://github.com/yunzhiheyi/media_picker
+issue_tracker: https://github.com/yunzhiheyi/media_picker/issues
+publish_to: none
 
 environment:
   sdk: ^3.7.2
@@ -21,7 +21,13 @@ dependencies:
   photo_manager: ^3.8.3
   file_picker: ^10.3.10
   flutter_image_compress: ^2.4.0
-  ffmpeg_kit_flutter_new: ^4.1.0
+  # Keep iOS FFmpeg headers reproducible; the floating 4.4.x release omits
+  # FFmpegKitConfig.h from its simulator pod.
+  ffmpeg_kit_flutter_new: 4.1.0
+  hero_media_viewer:
+    git:
+      url: https://github.com/yunzhiheyi/hero_media_viewer.git
+      ref: d5ce1daaec9da706ecf83adfa72af4eea4940481
 
 dev_dependencies:
   flutter_test:
@@ -29,6 +35,7 @@ dev_dependencies:
   flutter_lints: ^5.0.0
 
 flutter:
+  uses-material-design: true
   plugin:
     platforms:
       android:

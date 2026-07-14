@@ -1,12 +1,5 @@
 /// Selectable media kinds for the picker / pipeline.
-enum MediaKind {
-  image,
-  video,
-}
+enum MediaKind { image, video }
 
 /// What the picker should list.
-enum MediaPickType {
-  image,
-  video,
-  both,
-}
+enum MediaPickType { image, video, both }

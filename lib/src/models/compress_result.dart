@@ -20,8 +20,7 @@ class ImageCompressResult {
     required this.originalSize,
   });
 
-  double get compressionRatio =>
-      originalSize == 0 ? 1 : size / originalSize;
+  double get compressionRatio => originalSize == 0 ? 1 : size / originalSize;
 }
 
 /// Result of a video compress pass.
@@ -38,6 +37,5 @@ class VideoCompressResult {
     this.info,
   });
 
-  double get compressionRatio =>
-      originalSize == 0 ? 1 : size / originalSize;
+  double get compressionRatio => originalSize == 0 ? 1 : size / originalSize;
 }

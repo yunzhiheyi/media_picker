@@ -76,7 +76,11 @@ class ImageCompressor {
     );
     await File(inPath).writeAsBytes(input, flush: true);
     try {
-      return await compressFile(inPath, options: options, outputPath: outputPath);
+      return await compressFile(
+        inPath,
+        options: options,
+        outputPath: outputPath,
+      );
     } finally {
       try {
         await File(inPath).delete();

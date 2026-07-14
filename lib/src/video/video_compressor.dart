@@ -52,9 +52,10 @@ class VideoCompressor {
         'mc_poster_${DateTime.now().microsecondsSinceEpoch}.jpg',
       );
 
-      final scale = maxSide == null
-          ? ''
-          : ' -vf "scale=\'min($maxSide,iw)\':\'min($maxSide,ih)\':force_original_aspect_ratio=decrease"';
+      final scale =
+          maxSide == null
+              ? ''
+              : ' -vf "scale=\'min($maxSide,iw)\':\'min($maxSide,ih)\':force_original_aspect_ratio=decrease"';
       final command =
           '-ss 0 -i "$videoPath"$scale -vframes 1 -q:v $quality -y "$thumbPath"';
 
@@ -78,8 +79,8 @@ class VideoCompressor {
     required String inputPath,
     required VideoCompressOptions options,
   }) async* {
-    final id = options.taskId ??
-        DateTime.now().microsecondsSinceEpoch.toString();
+    final id =
+        options.taskId ?? DateTime.now().microsecondsSinceEpoch.toString();
     final inputFile = File(inputPath);
     if (!await inputFile.exists()) {
       throw StateError('Input video not found: $inputPath');
@@ -119,9 +120,10 @@ class VideoCompressor {
     var hasError = false;
     String? errorMessage;
     int? sessionId;
-    final durationSec = info.duration?.inMilliseconds != null
-        ? info.duration!.inMilliseconds / 1000.0
-        : null;
+    final durationSec =
+        info.duration?.inMilliseconds != null
+            ? info.duration!.inMilliseconds / 1000.0
+            : null;
 
     try {
       final session = await FFmpegKit.executeAsync(
@@ -212,7 +214,10 @@ class VideoCompressor {
       taskId: options.taskId,
     );
 
-    await for (final p in compressProgress(inputPath: inputPath, options: opts)) {
+    await for (final p in compressProgress(
+      inputPath: inputPath,
+      options: opts,
+    )) {
       onProgress?.call(p);
     }
 
@@ -332,9 +337,10 @@ class VideoCompressor {
         path: path,
         name: p.basename(path),
         size: size,
-        duration: durationSec == null
-            ? null
-            : Duration(milliseconds: (durationSec * 1000).round()),
+        duration:
+            durationSec == null
+                ? null
+                : Duration(milliseconds: (durationSec * 1000).round()),
         width: width != null ? int.tryParse(width) : null,
         height: height != null ? int.tryParse(height) : null,
         codec: codec,
@@ -351,11 +357,7 @@ class VideoCompressor {
   VideoInfo _basicInfo(String path) {
     final file = File(path);
     final stat = file.statSync();
-    return VideoInfo(
-      path: path,
-      name: p.basename(path),
-      size: stat.size,
-    );
+    return VideoInfo(path: path, name: p.basename(path), size: stat.size);
   }
 
   String _buildCommand({
@@ -372,8 +374,7 @@ class VideoCompressor {
     final buffer = StringBuffer();
     buffer.write('-i "$inputPath"');
 
-    final videoCodec =
-        Platform.isAndroid ? 'libx264' : 'h264_videotoolbox';
+    final videoCodec = Platform.isAndroid ? 'libx264' : 'h264_videotoolbox';
     buffer.write(' -c:v $videoCodec');
 
     final targetBitrate = bitrate <= 0 ? 1500000 : bitrate;

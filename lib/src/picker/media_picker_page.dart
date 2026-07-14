@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:hero_media_viewer/hero_media_viewer.dart';
 import 'package:photo_manager/photo_manager.dart';
 
 import '../models/media_type.dart';
@@ -145,8 +146,9 @@ class _MediaPickerPageState extends State<MediaPickerPage> {
     for (final asset in items) {
       if (_thumbs.containsKey(asset.id)) continue;
       try {
-        final bytes =
-            await asset.thumbnailDataWithSize(const ThumbnailSize(240, 240));
+        final bytes = await asset.thumbnailDataWithSize(
+          const ThumbnailSize(240, 240),
+        );
         if (!mounted) return;
         setState(() => _thumbs[asset.id] = bytes);
       } catch (_) {
@@ -165,6 +167,42 @@ class _MediaPickerPageState extends State<MediaPickerPage> {
     });
   }
 
+  /// 图片与视频都使用同一套 Hero overlay；选择状态只由缩略图右上角控制。
+  Future<void> _previewAsset(AssetEntity asset, Rect startRect) async {
+    final file = await asset.file;
+    if (file == null || !mounted) return;
+    final thumbnailBytes =
+        _thumbs[asset.id] ??
+        await asset.thumbnailDataWithSize(const ThumbnailSize(512, 512));
+    if (!mounted) return;
+
+    final thumbnail =
+        thumbnailBytes == null ? null : MemoryImage(thumbnailBytes);
+    final aspectRatio =
+        asset.width > 0 && asset.height > 0 ? asset.width / asset.height : null;
+    final item =
+        asset.type == AssetType.video
+            ? MediaItem.video(
+              id: asset.id,
+              videoPath: file.path,
+              thumbnail: thumbnail,
+              aspectRatio: aspectRatio,
+            )
+            : MediaItem.image(
+              id: asset.id,
+              imageProvider: FileImage(file),
+              thumbnail: thumbnail,
+              aspectRatio: aspectRatio,
+            );
+    showMediaHeroOverlay(
+      context: context,
+      items: [item],
+      initialIndex: 0,
+      startRect: startRect,
+      showCloseButton: true,
+    );
+  }
+
   Future<void> _confirm() async {
     if (_selected.isEmpty) {
       Navigator.pop(context, <PickedMedia>[]);
@@ -179,9 +217,8 @@ class _MediaPickerPageState extends State<MediaPickerPage> {
     for (final asset in _selected) {
       final file = await asset.file;
       if (file == null) continue;
-      final kind = asset.type == AssetType.video
-          ? MediaKind.video
-          : MediaKind.image;
+      final kind =
+          asset.type == AssetType.video ? MediaKind.video : MediaKind.image;
       out.add(
         PickedMedia(
           kind: kind,
@@ -225,7 +262,8 @@ class _MediaPickerPageState extends State<MediaPickerPage> {
       final path = f.path;
       if (path == null) continue;
       final lower = path.toLowerCase();
-      final isVideo = lower.endsWith('.mp4') ||
+      final isVideo =
+          lower.endsWith('.mp4') ||
           lower.endsWith('.mov') ||
           lower.endsWith('.m4v');
       out.add(
@@ -244,17 +282,18 @@ class _MediaPickerPageState extends State<MediaPickerPage> {
     if (_albums.isEmpty) return;
     final picked = await showModalBottomSheet<AssetPathEntity>(
       context: context,
-      builder: (ctx) => ListView.builder(
-        itemCount: _albums.length,
-        itemBuilder: (_, i) {
-          final album = _albums[i];
-          return ListTile(
-            title: Text(album.name),
-            selected: album.id == _selectedAlbum?.id,
-            onTap: () => Navigator.pop(ctx, album),
-          );
-        },
-      ),
+      builder:
+          (ctx) => ListView.builder(
+            itemCount: _albums.length,
+            itemBuilder: (_, i) {
+              final album = _albums[i];
+              return ListTile(
+                title: Text(album.name),
+                selected: album.id == _selectedAlbum?.id,
+                onTap: () => Navigator.pop(ctx, album),
+              );
+            },
+          ),
     );
     if (picked == null || !mounted) return;
     setState(() {
@@ -269,9 +308,7 @@ class _MediaPickerPageState extends State<MediaPickerPage> {
   @override
   Widget build(BuildContext context) {
     if (!(Platform.isIOS || Platform.isAndroid)) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     return Scaffold(
@@ -336,19 +373,22 @@ class _MediaPickerPageState extends State<MediaPickerPage> {
         mainAxisSpacing: 2,
       ),
       itemCount: _assets.length,
-      itemBuilder: (_, i) => _AssetTile(
-        asset: _assets[i],
-        thumb: _thumbs[_assets[i].id],
-        selectedIndex: _selected.contains(_assets[i])
-            ? _selected.toList().indexOf(_assets[i]) + 1
-            : null,
-        onTap: () => _toggle(_assets[i]),
-        onVisible: () {
-          if (!_thumbs.containsKey(_assets[i].id)) {
-            _preloadThumbs([_assets[i]]);
-          }
-        },
-      ),
+      itemBuilder:
+          (_, i) => _AssetTile(
+            asset: _assets[i],
+            thumb: _thumbs[_assets[i].id],
+            selectedIndex:
+                _selected.contains(_assets[i])
+                    ? _selected.toList().indexOf(_assets[i]) + 1
+                    : null,
+            onToggle: () => _toggle(_assets[i]),
+            onPreview: (startRect) => _previewAsset(_assets[i], startRect),
+            onVisible: () {
+              if (!_thumbs.containsKey(_assets[i].id)) {
+                _preloadThumbs([_assets[i]]);
+              }
+            },
+          ),
     );
   }
 }
@@ -357,14 +397,16 @@ class _AssetTile extends StatefulWidget {
   final AssetEntity asset;
   final Uint8List? thumb;
   final int? selectedIndex;
-  final VoidCallback onTap;
+  final VoidCallback onToggle;
+  final ValueChanged<Rect> onPreview;
   final VoidCallback onVisible;
 
   const _AssetTile({
     required this.asset,
     required this.thumb,
     required this.selectedIndex,
-    required this.onTap,
+    required this.onToggle,
+    required this.onPreview,
     required this.onVisible,
   });
 
@@ -373,6 +415,8 @@ class _AssetTile extends StatefulWidget {
 }
 
 class _AssetTileState extends State<_AssetTile> {
+  final _thumbnailKey = GlobalKey();
+
   @override
   void initState() {
     super.initState();
@@ -385,7 +429,14 @@ class _AssetTileState extends State<_AssetTile> {
     final selected = widget.selectedIndex != null;
 
     return GestureDetector(
-      onTap: widget.onTap,
+      key: _thumbnailKey,
+      behavior: HitTestBehavior.opaque,
+      onTap: () {
+        final box =
+            _thumbnailKey.currentContext?.findRenderObject() as RenderBox?;
+        if (box == null || !box.hasSize) return;
+        widget.onPreview(box.localToGlobal(Offset.zero) & box.size);
+      },
       child: Stack(
         fit: StackFit.expand,
         children: [
@@ -407,29 +458,43 @@ class _AssetTileState extends State<_AssetTile> {
               ),
             ),
           Positioned(
-            right: 6,
-            top: 6,
-            child: Container(
-              width: 22,
-              height: 22,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: selected
-                    ? Theme.of(context).colorScheme.primary
-                    : Colors.black38,
-                border: Border.all(color: Colors.white, width: 1.5),
+            right: 4,
+            top: 4,
+            child: Semantics(
+              button: true,
+              selected: selected,
+              label: selected ? 'Deselect media' : 'Select media',
+              child: Material(
+                color: Colors.transparent,
+                child: InkResponse(
+                  onTap: widget.onToggle,
+                  radius: 20,
+                  child: Container(
+                    width: 26,
+                    height: 26,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color:
+                          selected
+                              ? Theme.of(context).colorScheme.primary
+                              : Colors.black38,
+                      border: Border.all(color: Colors.white, width: 1.5),
+                    ),
+                    child:
+                        selected
+                            ? Text(
+                              '${widget.selectedIndex}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            )
+                            : null,
+                  ),
+                ),
               ),
-              child: selected
-                  ? Text(
-                      '${widget.selectedIndex}',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    )
-                  : null,
             ),
           ),
         ],
