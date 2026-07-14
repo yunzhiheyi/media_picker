@@ -288,19 +288,64 @@ class _MediaPickerPageState extends State<MediaPickerPage> {
 
   Future<void> _switchAlbum() async {
     if (_albums.isEmpty) return;
-    final picked = await showModalBottomSheet<AssetPathEntity>(
+    final picked = await showGeneralDialog<AssetPathEntity>(
       context: context,
-      builder:
-          (ctx) => ListView.builder(
-            itemCount: _albums.length,
-            itemBuilder: (_, i) {
-              final album = _albums[i];
-              return ListTile(
-                title: Text(album.name),
-                selected: album.id == _selectedAlbum?.id,
-                onTap: () => Navigator.pop(ctx, album),
-              );
-            },
+      barrierDismissible: true,
+      barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
+      barrierColor: Colors.black38,
+      transitionDuration: const Duration(milliseconds: 180),
+      pageBuilder: (ctx, _, _) {
+        final media = MediaQuery.of(ctx);
+        final top = media.padding.top + kToolbarHeight + 8;
+        var maxHeight = media.size.height - top - 16;
+        if (maxHeight > 360) maxHeight = 360;
+        if (maxHeight < 160) maxHeight = 160;
+
+        return Stack(
+          children: [
+            Positioned(
+              top: top,
+              left: 12,
+              right: 12,
+              child: Material(
+                color: Theme.of(ctx).colorScheme.surface,
+                elevation: 12,
+                shadowColor: Colors.black26,
+                borderRadius: BorderRadius.circular(18),
+                clipBehavior: Clip.antiAlias,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(maxHeight: maxHeight),
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    itemCount: _albums.length,
+                    itemBuilder: (_, i) {
+                      final album = _albums[i];
+                      return ListTile(
+                        title: Text(album.name),
+                        selected: album.id == _selectedAlbum?.id,
+                        onTap: () => Navigator.pop(ctx, album),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+      transitionBuilder:
+          (_, animation, _, child) => FadeTransition(
+            opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
+            child: SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0, -0.04),
+                end: Offset.zero,
+              ).animate(
+                CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
+              ),
+              child: child,
+            ),
           ),
     );
     if (picked == null || !mounted) return;
