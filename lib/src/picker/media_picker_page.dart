@@ -45,6 +45,7 @@ class _MediaPickerPageState extends State<MediaPickerPage> {
 
   bool _loading = true;
   bool _hasMore = true;
+  bool _albumMenuOpen = false;
   int _page = 0;
   String? _error;
 
@@ -286,70 +287,18 @@ class _MediaPickerPageState extends State<MediaPickerPage> {
     Navigator.pop(context, out);
   }
 
-  Future<void> _switchAlbum() async {
+  void _toggleAlbumMenu() {
     if (_albums.isEmpty) return;
-    final picked = await showGeneralDialog<AssetPathEntity>(
-      context: context,
-      barrierDismissible: true,
-      barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
-      barrierColor: Colors.black38,
-      transitionDuration: const Duration(milliseconds: 180),
-      pageBuilder: (ctx, _, _) {
-        final media = MediaQuery.of(ctx);
-        final top = media.padding.top + kToolbarHeight + 8;
-        var maxHeight = media.size.height - top - 16;
-        if (maxHeight > 360) maxHeight = 360;
-        if (maxHeight < 160) maxHeight = 160;
+    setState(() => _albumMenuOpen = !_albumMenuOpen);
+  }
 
-        return Stack(
-          children: [
-            Positioned(
-              top: top,
-              left: 12,
-              right: 12,
-              child: Material(
-                color: Theme.of(ctx).colorScheme.surface,
-                elevation: 12,
-                shadowColor: Colors.black26,
-                borderRadius: BorderRadius.circular(18),
-                clipBehavior: Clip.antiAlias,
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(maxHeight: maxHeight),
-                  child: ListView.builder(
-                    shrinkWrap: true,
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    itemCount: _albums.length,
-                    itemBuilder: (_, i) {
-                      final album = _albums[i];
-                      return ListTile(
-                        title: Text(album.name),
-                        selected: album.id == _selectedAlbum?.id,
-                        onTap: () => Navigator.pop(ctx, album),
-                      );
-                    },
-                  ),
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-      transitionBuilder:
-          (_, animation, _, child) => FadeTransition(
-            opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
-            child: SlideTransition(
-              position: Tween<Offset>(
-                begin: const Offset(0, -0.04),
-                end: Offset.zero,
-              ).animate(
-                CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
-              ),
-              child: child,
-            ),
-          ),
-    );
-    if (picked == null || !mounted) return;
+  Future<void> _selectAlbum(AssetPathEntity picked) async {
+    if (picked.id == _selectedAlbum?.id) {
+      setState(() => _albumMenuOpen = false);
+      return;
+    }
     setState(() {
+      _albumMenuOpen = false;
       _selectedAlbum = picked;
       _selected.clear();
       _loading = true;
@@ -367,7 +316,7 @@ class _MediaPickerPageState extends State<MediaPickerPage> {
     return Scaffold(
       appBar: AppBar(
         title: GestureDetector(
-          onTap: _switchAlbum,
+          onTap: _toggleAlbumMenu,
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -377,7 +326,12 @@ class _MediaPickerPageState extends State<MediaPickerPage> {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              const Icon(Icons.arrow_drop_down),
+              AnimatedRotation(
+                turns: _albumMenuOpen ? 0.5 : 0,
+                duration: const Duration(milliseconds: 180),
+                curve: Curves.easeOutCubic,
+                child: const Icon(Icons.arrow_drop_down),
+              ),
             ],
           ),
         ),
@@ -390,7 +344,18 @@ class _MediaPickerPageState extends State<MediaPickerPage> {
           ),
         ],
       ),
-      body: _buildBody(),
+      body: Stack(
+        children: [
+          _buildBody(),
+          if (_albumMenuOpen)
+            _AlbumDropdownOverlay(
+              albums: _albums,
+              selectedAlbumId: _selectedAlbum?.id,
+              onDismiss: () => setState(() => _albumMenuOpen = false),
+              onSelect: _selectAlbum,
+            ),
+        ],
+      ),
     );
   }
 
@@ -442,6 +407,95 @@ class _MediaPickerPageState extends State<MediaPickerPage> {
               }
             },
           ),
+    );
+  }
+}
+
+class _AlbumDropdownOverlay extends StatelessWidget {
+  const _AlbumDropdownOverlay({
+    required this.albums,
+    required this.selectedAlbumId,
+    required this.onDismiss,
+    required this.onSelect,
+  });
+
+  final List<AssetPathEntity> albums;
+  final String? selectedAlbumId;
+  final VoidCallback onDismiss;
+  final ValueChanged<AssetPathEntity> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Positioned.fill(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          const itemHeight = 56.0;
+          final desiredHeight = albums.length * itemHeight;
+          final maxHeight = (constraints.maxHeight * 0.52).clamp(
+            itemHeight,
+            360.0,
+          );
+          final menuHeight = desiredHeight.clamp(itemHeight, maxHeight);
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Material(
+                color: theme.colorScheme.surface,
+                elevation: 6,
+                shadowColor: Colors.black26,
+                child: SizedBox(
+                  height: menuHeight,
+                  child: ListView.separated(
+                    padding: EdgeInsets.zero,
+                    itemCount: albums.length,
+                    separatorBuilder:
+                        (_, _) => Divider(
+                          height: 1,
+                          indent: 16,
+                          color: theme.dividerColor.withValues(alpha: 0.36),
+                        ),
+                    itemBuilder: (_, i) {
+                      final album = albums[i];
+                      final selected = album.id == selectedAlbumId;
+                      return SizedBox(
+                        height: itemHeight,
+                        child: ListTile(
+                          title: Text(
+                            album.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color:
+                                  selected
+                                      ? theme.colorScheme.primary
+                                      : theme.colorScheme.onSurface,
+                            ),
+                          ),
+                          selected: selected,
+                          selectedTileColor: Colors.transparent,
+                          onTap: () => onSelect(album),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+              Expanded(
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: onDismiss,
+                  child: ColoredBox(
+                    color: Colors.black.withValues(alpha: 0.42),
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 }
