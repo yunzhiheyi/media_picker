@@ -200,6 +200,14 @@ class _MediaPickerPageState extends State<MediaPickerPage> {
       initialIndex: 0,
       startRect: startRect,
       showCloseButton: true,
+      videoBuilder: (ctx, videoSource, thumb, index, isFocus) {
+        if (!isFocus) {
+          return thumb != null
+              ? Center(child: Image(image: thumb, fit: BoxFit.contain))
+              : const ColoredBox(color: Colors.black);
+        }
+        return _HeroVideoPreview(videoSource: videoSource, thumbnail: thumb);
+      },
     );
   }
 
@@ -444,6 +452,7 @@ class _AssetTileState extends State<_AssetTile> {
             Image.memory(widget.thumb!, fit: BoxFit.cover)
           else
             Container(color: Colors.black12),
+          if (isVideo) const Center(child: _VideoPlayIndicator(size: 34)),
           if (isVideo)
             Positioned(
               left: 6,
@@ -509,5 +518,102 @@ class _AssetTileState extends State<_AssetTile> {
       return '${d.inHours}:$m:$s';
     }
     return '$m:$s';
+  }
+}
+
+class _VideoPlayIndicator extends StatelessWidget {
+  const _VideoPlayIndicator({required this.size});
+
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return ExcludeSemantics(
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.56),
+          shape: BoxShape.circle,
+          border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.22),
+              blurRadius: size * 0.12,
+              offset: Offset(0, size * 0.04),
+            ),
+          ],
+        ),
+        child: SizedBox.square(
+          dimension: size,
+          child: Center(
+            child: Padding(
+              padding: EdgeInsets.only(left: size * 0.045),
+              child: Icon(
+                Icons.play_arrow_rounded,
+                color: Colors.white,
+                size: size * 0.54,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HeroVideoPreview extends StatefulWidget {
+  const _HeroVideoPreview({required this.videoSource, this.thumbnail});
+
+  final String videoSource;
+  final ImageProvider? thumbnail;
+
+  @override
+  State<_HeroVideoPreview> createState() => _HeroVideoPreviewState();
+}
+
+class _HeroVideoPreviewState extends State<_HeroVideoPreview> {
+  var _playerRequested = false;
+
+  @override
+  Widget build(BuildContext context) {
+    if (_playerRequested) {
+      return HeroVideoPlayer(
+        videoSource: widget.videoSource,
+        thumbnail: widget.thumbnail,
+      );
+    }
+    return _VideoPoster(
+      image: widget.thumbnail,
+      onPlay: () => setState(() => _playerRequested = true),
+    );
+  }
+}
+
+class _VideoPoster extends StatelessWidget {
+  const _VideoPoster({required this.image, required this.onPlay});
+
+  final ImageProvider? image;
+  final VoidCallback onPlay;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: '播放视频',
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onPlay,
+        child: Stack(
+          alignment: Alignment.center,
+          fit: StackFit.expand,
+          children: [
+            if (image != null) Image(image: image!, fit: BoxFit.contain),
+            const DecoratedBox(
+              decoration: BoxDecoration(color: Color.fromRGBO(0, 0, 0, 0.12)),
+            ),
+            const Center(child: _VideoPlayIndicator(size: 44)),
+          ],
+        ),
+      ),
+    );
   }
 }
