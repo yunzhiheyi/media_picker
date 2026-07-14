@@ -21,9 +21,9 @@ dependencies:
   photo_manager: ^3.8.3
   file_picker: ^10.3.10
   flutter_image_compress: ^2.4.0
-  # Keep iOS FFmpeg headers reproducible; the floating 4.4.x release omits
-  # FFmpegKitConfig.h from its simulator pod.
-  ffmpeg_kit_flutter_new: 4.1.0
+  # Native Android Media3 / iOS AVFoundation compressor.  It deliberately
+  # avoids FFmpeg binaries and provides a real-time progress callback.
+  v_video_compressor: ^2.0.0
   hero_media_viewer:
     git:
       url: https://github.com/yunzhiheyi/hero_media_viewer.git

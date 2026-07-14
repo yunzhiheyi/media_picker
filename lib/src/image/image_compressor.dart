@@ -17,18 +17,26 @@ class ImageCompressor {
     String inputPath, {
     ImageCompressOptions options = const ImageCompressOptions(),
     String? outputPath,
+    void Function(double progress)? onProgress,
   }) async {
     final input = File(inputPath);
     if (!await input.exists()) {
       throw StateError('Image file not found: $inputPath');
     }
+    onProgress?.call(0.02);
     final originalSize = await input.length();
     final decoded = await _decodeSize(inputPath);
     final target = _fitLongEdge(decoded.$1, decoded.$2, options.maxSide);
+    onProgress?.call(0.1);
 
     var quality = options.quality;
     Uint8List? bytes;
+    var pass = 0;
     while (true) {
+      // flutter_image_compress has no native progress callback. We expose its
+      // deterministic phases (decode -> native encode pass -> file write)
+      // without pretending the encoder itself reports byte-level progress.
+      onProgress?.call((0.12 + pass * 0.16).clamp(0.12, 0.72));
       bytes = await FlutterImageCompress.compressWithFile(
         inputPath,
         minWidth: target.$1,
@@ -46,13 +54,16 @@ class ImageCompressor {
         break;
       }
       quality = (quality - 10).clamp(options.minQuality, options.quality);
+      pass++;
     }
 
     final outPath = outputPath ?? await _tempPath(options.format);
     await File(outPath).writeAsBytes(bytes, flush: true);
+    onProgress?.call(0.86);
 
     // flutter_image_compress may not return exact dims; re-probe when possible.
     final outSize = await _decodeSize(outPath);
+    onProgress?.call(1);
 
     return ImageCompressResult(
       path: outPath,
@@ -68,6 +79,7 @@ class ImageCompressor {
     Uint8List input, {
     ImageCompressOptions options = const ImageCompressOptions(),
     String? outputPath,
+    void Function(double progress)? onProgress,
   }) async {
     final tempDir = await getTemporaryDirectory();
     final inPath = p.join(
@@ -80,11 +92,14 @@ class ImageCompressor {
         inPath,
         options: options,
         outputPath: outputPath,
+        onProgress: onProgress,
       );
     } finally {
       try {
         await File(inPath).delete();
-      } catch (_) {}
+      } on FileSystemException catch (error) {
+        debugPrint('[ImageCompressor] temp input cleanup failed: $error');
+      }
     }
   }
 

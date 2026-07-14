@@ -27,8 +27,9 @@ dependencies:
 
 ### iOS host `Info.plist`
 
-The compression dependency requires an iOS 14.0 deployment target. Hosts that
-use static CocoaPods linking should also enable `use_modular_headers!`.
+`media_picker` has an iOS 14.0 deployment target. It uses native AVFoundation
+for video compression, so no FFmpeg framework or static-header workaround is
+required.
 
 ```xml
 <key>NSPhotoLibraryUsageDescription</key>
@@ -76,7 +77,7 @@ final poster = await compressor.extractPoster(video.path, maxSide: 512);
 | | iOS | Android | Notes |
 |---|---|---|---|
 | Image compress | ✅ | ✅ | `flutter_image_compress` |
-| Video compress | ✅ | ✅ | `ffmpeg_kit_flutter_new` (VideoToolbox / libx264) |
+| Video compress | ✅ | ✅ | `v_video_compressor` (AVFoundation / Media3) |
 | Album picker | ✅ | ✅ | `photo_manager` |
 | Desktop file pick | ✅ | — | via `file_picker` in example hosts |
 
