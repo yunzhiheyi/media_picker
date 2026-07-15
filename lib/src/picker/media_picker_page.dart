@@ -201,6 +201,9 @@ class _MediaPickerPageState extends State<MediaPickerPage> {
       initialIndex: 0,
       startRect: startRect,
       showCloseButton: true,
+      // 系统选片页里下拖视频时，仅移动视频封面；不能让全屏 Hero 画布继续
+      // 给相册盖黑色遮罩。图片预览仍保持原有的渐隐反馈。
+      clearBackdropOnDrag: asset.type == AssetType.video,
       videoBuilder: (ctx, videoSource, thumb, index, isFocus) {
         if (!isFocus) {
           return thumb != null
@@ -706,9 +709,8 @@ class _VideoPoster extends StatelessWidget {
           fit: StackFit.expand,
           children: [
             if (image != null) Image(image: image!, fit: BoxFit.contain),
-            const DecoratedBox(
-              decoration: BoxDecoration(color: Color.fromRGBO(0, 0, 0, 0.12)),
-            ),
+            // 预览画布必须透明：Hero 拖动时只显示视频封面，不额外产生一块
+            // 黑色的全屏视频底板。
             const Center(child: _VideoPlayIndicator(size: 44)),
           ],
         ),
