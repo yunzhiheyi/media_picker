@@ -347,8 +347,9 @@ class _MediaPickerPageState extends State<MediaPickerPage> {
       body: Stack(
         children: [
           _buildBody(),
-          if (_albumMenuOpen)
+          if (_albums.isNotEmpty)
             _AlbumDropdownOverlay(
+              visible: _albumMenuOpen,
               albums: _albums,
               selectedAlbumId: _selectedAlbum?.id,
               onDismiss: () => setState(() => _albumMenuOpen = false),
@@ -413,12 +414,14 @@ class _MediaPickerPageState extends State<MediaPickerPage> {
 
 class _AlbumDropdownOverlay extends StatelessWidget {
   const _AlbumDropdownOverlay({
+    required this.visible,
     required this.albums,
     required this.selectedAlbumId,
     required this.onDismiss,
     required this.onSelect,
   });
 
+  final bool visible;
   final List<AssetPathEntity> albums;
   final String? selectedAlbumId;
   final VoidCallback onDismiss;
@@ -429,72 +432,107 @@ class _AlbumDropdownOverlay extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Positioned.fill(
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          const itemHeight = 56.0;
-          final desiredHeight = albums.length * itemHeight;
-          final maxHeight = (constraints.maxHeight * 0.52).clamp(
-            itemHeight,
-            360.0,
-          );
-          final menuHeight = desiredHeight.clamp(itemHeight, maxHeight);
+      child: IgnorePointer(
+        ignoring: !visible,
+        child: Semantics(
+          hidden: !visible,
+          child: TweenAnimationBuilder<double>(
+            tween: Tween(end: visible ? 1.0 : 0.0),
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOutCubic,
+            builder: (context, progress, _) {
+              return LayoutBuilder(
+                builder: (context, constraints) {
+                  const itemHeight = 56.0;
+                  final desiredHeight = albums.length * itemHeight;
+                  final maxHeight = (constraints.maxHeight * 0.52).clamp(
+                    itemHeight,
+                    360.0,
+                  );
+                  final menuHeight = desiredHeight.clamp(itemHeight, maxHeight);
 
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Material(
-                color: theme.colorScheme.surface,
-                elevation: 6,
-                shadowColor: Colors.black26,
-                child: SizedBox(
-                  height: menuHeight,
-                  child: ListView.separated(
-                    padding: EdgeInsets.zero,
-                    itemCount: albums.length,
-                    separatorBuilder:
-                        (_, _) => Divider(
-                          height: 1,
-                          indent: 16,
-                          color: theme.dividerColor.withValues(alpha: 0.36),
-                        ),
-                    itemBuilder: (_, i) {
-                      final album = albums[i];
-                      final selected = album.id == selectedAlbumId;
-                      return SizedBox(
-                        height: itemHeight,
-                        child: ListTile(
-                          title: Text(
-                            album.name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color:
-                                  selected
-                                      ? theme.colorScheme.primary
-                                      : theme.colorScheme.onSurface,
+                  return Stack(
+                    children: [
+                      Positioned.fill(
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: onDismiss,
+                          child: ColoredBox(
+                            color: Colors.black.withValues(
+                              alpha: 0.42 * progress,
                             ),
                           ),
-                          selected: selected,
-                          selectedTileColor: Colors.transparent,
-                          onTap: () => onSelect(album),
                         ),
-                      );
-                    },
-                  ),
-                ),
-              ),
-              Expanded(
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: onDismiss,
-                  child: ColoredBox(
-                    color: Colors.black.withValues(alpha: 0.42),
-                  ),
-                ),
-              ),
-            ],
-          );
-        },
+                      ),
+                      Transform.translate(
+                        offset: Offset(0, -12 * (1 - progress)),
+                        child: Opacity(
+                          opacity: progress,
+                          child: Material(
+                            color: theme.colorScheme.surface,
+                            elevation: 6 * progress,
+                            shadowColor: Colors.black26,
+                            child: SizedBox(
+                              height: menuHeight,
+                              child: ListView.separated(
+                                padding: EdgeInsets.zero,
+                                itemCount: albums.length,
+                                separatorBuilder:
+                                    (_, _) => Divider(
+                                      height: 1,
+                                      indent: 16,
+                                      color: theme.dividerColor.withValues(
+                                        alpha: 0.36,
+                                      ),
+                                    ),
+                                itemBuilder: (_, i) {
+                                  final album = albums[i];
+                                  final selected = album.id == selectedAlbumId;
+                                  final delay = 0.06 + (i * 0.035);
+                                  final itemProgress =
+                                      ((progress - delay) / (1 - delay))
+                                          .clamp(0.0, 1.0)
+                                          .toDouble();
+                                  final itemOpacity = Curves.easeOut.transform(
+                                    itemProgress,
+                                  );
+                                  return Opacity(
+                                    opacity: itemOpacity,
+                                    child: SizedBox(
+                                      height: itemHeight,
+                                      child: ListTile(
+                                        title: Text(
+                                          album.name,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            color:
+                                                selected
+                                                    ? theme.colorScheme.primary
+                                                    : theme
+                                                        .colorScheme
+                                                        .onSurface,
+                                          ),
+                                        ),
+                                        selected: selected,
+                                        selectedTileColor: Colors.transparent,
+                                        onTap: () => onSelect(album),
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              );
+            },
+          ),
+        ),
       ),
     );
   }
