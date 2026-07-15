@@ -201,9 +201,6 @@ class _MediaPickerPageState extends State<MediaPickerPage> {
       initialIndex: 0,
       startRect: startRect,
       showCloseButton: true,
-      // 系统选片页里下拖视频时，仅移动视频封面；不能让全屏 Hero 画布继续
-      // 给相册盖黑色遮罩。图片预览仍保持原有的渐隐反馈。
-      clearBackdropOnDrag: asset.type == AssetType.video,
       videoBuilder: (ctx, videoSource, thumb, index, isFocus) {
         if (!isFocus) {
           return thumb != null
