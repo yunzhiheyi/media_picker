@@ -8,6 +8,7 @@ import 'package:photo_manager/photo_manager.dart';
 
 import '../models/media_type.dart';
 import '../models/picked_media.dart';
+import '../widgets/animated_entry_item.dart';
 
 /// Cross-platform media picker page.
 ///
@@ -488,16 +489,12 @@ class _AlbumDropdownOverlay extends StatelessWidget {
                                 itemBuilder: (_, i) {
                                   final album = albums[i];
                                   final selected = album.id == selectedAlbumId;
-                                  final delay = 0.06 + (i * 0.035);
-                                  final itemProgress =
-                                      ((progress - delay) / (1 - delay))
-                                          .clamp(0.0, 1.0)
-                                          .toDouble();
-                                  final itemOpacity = Curves.easeOut.transform(
-                                    itemProgress,
-                                  );
-                                  return Opacity(
-                                    opacity: itemOpacity,
+                                  return AnimatedEntryItem(
+                                    itemKey: 'album-$visible-${album.id}',
+                                    index: i,
+                                    initialOffset: 18,
+                                    reboundOffset: 3,
+                                    direction: EntryAnimationDirection.vertical,
                                     child: SizedBox(
                                       height: itemHeight,
                                       child: ListTile(
