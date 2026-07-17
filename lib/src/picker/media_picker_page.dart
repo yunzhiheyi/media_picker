@@ -1,14 +1,15 @@
 import 'dart:io';
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/physics.dart';
 import 'package:hero_media_viewer/hero_media_viewer.dart';
 import 'package:photo_manager/photo_manager.dart';
 
 import '../models/media_type.dart';
 import '../models/picked_media.dart';
-import '../widgets/animated_entry_item.dart';
 
 /// Cross-platform media picker page.
 ///
@@ -329,8 +330,9 @@ class _MediaPickerPageState extends State<MediaPickerPage> {
               ),
               AnimatedRotation(
                 turns: _albumMenuOpen ? 0.5 : 0,
-                duration: const Duration(milliseconds: 180),
-                curve: Curves.easeOutCubic,
+                // 与窗帘弹簧呼应：箭头带一点回摆而不是平直停住。
+                duration: const Duration(milliseconds: 320),
+                curve: Curves.easeOutBack,
                 child: const Icon(Icons.arrow_drop_down),
               ),
             ],
@@ -413,7 +415,10 @@ class _MediaPickerPageState extends State<MediaPickerPage> {
   }
 }
 
-class _AlbumDropdownOverlay extends StatelessWidget {
+/// 窗帘式相册下拉：面板高度由弹簧拉开（带轻微过冲回弹），条目随揭示按
+/// 牌堆顺序错峰滑入，各自跟随同一条弹簧完成回弹；收起走独立的临界阻尼
+/// 弹簧快速合拢，条目保持落位不重播入场动画。
+class _AlbumDropdownOverlay extends StatefulWidget {
   const _AlbumDropdownOverlay({
     required this.visible,
     required this.albums,
@@ -429,97 +434,169 @@ class _AlbumDropdownOverlay extends StatelessWidget {
   final ValueChanged<AssetPathEntity> onSelect;
 
   @override
+  State<_AlbumDropdownOverlay> createState() => _AlbumDropdownOverlayState();
+}
+
+class _AlbumDropdownOverlayState extends State<_AlbumDropdownOverlay>
+    with SingleTickerProviderStateMixin {
+  // 展开欠阻尼带过冲；收起临界阻尼快速合拢，不做反向表演。
+  static final _openSpring = SpringDescription.withDampingRatio(
+    mass: 1,
+    stiffness: 290,
+    ratio: 0.72,
+  );
+  static final _closeSpring = SpringDescription.withDampingRatio(
+    mass: 1,
+    stiffness: 480,
+    ratio: 1,
+  );
+  static const _itemHeight = 56.0;
+  static const _itemSlideIn = 14.0;
+
+  late final AnimationController _controller = AnimationController.unbounded(
+    vsync: this,
+  );
+  double _target = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.visible) {
+      _animateTo(1);
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant _AlbumDropdownOverlay oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.visible != widget.visible) {
+      _animateTo(widget.visible ? 1 : 0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  // 弹簧从当前值续接目标，快速连点标题时动画自然掉头而不是重启。
+  void _animateTo(double target) {
+    _target = target;
+    _controller.animateWith(
+      SpringSimulation(
+        target == 1 ? _openSpring : _closeSpring,
+        _controller.value,
+        target,
+        0,
+      ),
+    );
+  }
+
+  /// 条目按行错峰跟随主弹簧；越靠后的条目对过冲的放大越明显，形成级联
+  /// 回弹。收起时全部视为已落位，只由窗帘合拢带走。
+  double _itemProgress(int index) {
+    if (_target == 0) return 1;
+    final start = (index * 0.07).clamp(0.0, 0.45);
+    return math.max(0.0, (_controller.value - start) / (1 - start));
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
     return Positioned.fill(
       child: IgnorePointer(
-        ignoring: !visible,
+        ignoring: !widget.visible,
         child: Semantics(
-          hidden: !visible,
-          child: TweenAnimationBuilder<double>(
-            tween: Tween(end: visible ? 1.0 : 0.0),
-            duration: const Duration(milliseconds: 220),
-            curve: Curves.easeOutCubic,
-            builder: (context, progress, _) {
+          hidden: !widget.visible,
+          child: AnimatedBuilder(
+            animation: _controller,
+            builder: (context, _) {
+              final value = _controller.value;
+              final settled = value.clamp(0.0, 1.0).toDouble();
+              if (!widget.visible && value <= 0.001) {
+                return const SizedBox.shrink();
+              }
               return LayoutBuilder(
                 builder: (context, constraints) {
-                  const itemHeight = 56.0;
-                  final desiredHeight = albums.length * itemHeight;
+                  final desiredHeight = widget.albums.length * _itemHeight;
                   final maxHeight = (constraints.maxHeight * 0.52).clamp(
-                    itemHeight,
+                    _itemHeight,
                     360.0,
                   );
-                  final menuHeight = desiredHeight.clamp(itemHeight, maxHeight);
+                  final menuHeight = desiredHeight.clamp(
+                    _itemHeight,
+                    maxHeight,
+                  );
 
                   return Stack(
                     children: [
                       Positioned.fill(
                         child: GestureDetector(
                           behavior: HitTestBehavior.opaque,
-                          onTap: onDismiss,
+                          onTap: widget.onDismiss,
                           child: ColoredBox(
                             color: Colors.black.withValues(
-                              alpha: 0.42 * progress,
+                              alpha: 0.42 * settled,
                             ),
                           ),
                         ),
                       ),
-                      Transform.translate(
-                        offset: Offset(0, -12 * (1 - progress)),
-                        child: Opacity(
-                          opacity: progress,
-                          child: Material(
-                            color: theme.colorScheme.surface,
-                            elevation: 6 * progress,
-                            shadowColor: Colors.black26,
-                            child: SizedBox(
-                              height: menuHeight,
-                              child: ListView.separated(
-                                padding: EdgeInsets.zero,
-                                itemCount: albums.length,
-                                separatorBuilder:
-                                    (_, _) => Divider(
-                                      height: 1,
-                                      indent: 16,
-                                      color: theme.dividerColor.withValues(
-                                        alpha: 0.36,
-                                      ),
-                                    ),
-                                itemBuilder: (_, i) {
-                                  final album = albums[i];
-                                  final selected = album.id == selectedAlbumId;
-                                  return AnimatedEntryItem(
-                                    itemKey: 'album-$visible-${album.id}',
-                                    index: i,
-                                    initialOffset: 18,
-                                    reboundOffset: 3,
-                                    direction: EntryAnimationDirection.vertical,
-                                    child: SizedBox(
-                                      height: itemHeight,
-                                      child: ListTile(
-                                        title: Text(
-                                          album.name,
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: TextStyle(
-                                            color:
-                                                selected
-                                                    ? theme.colorScheme.primary
-                                                    : theme
-                                                        .colorScheme
-                                                        .onSurface,
-                                          ),
+                      Material(
+                        color: theme.colorScheme.surface,
+                        elevation: 6 * settled,
+                        shadowColor: Colors.black26,
+                        child: SizedBox(
+                          // 高度直接吃弹簧值：过冲段底缘越过终点再弹回，
+                          // 形成"拉开窗帘"的余量感。
+                          height: menuHeight * math.max(0.0, value),
+                          child: ListView.separated(
+                            padding: EdgeInsets.zero,
+                            itemCount: widget.albums.length,
+                            separatorBuilder:
+                                (_, _) => Divider(
+                                  height: 1,
+                                  indent: 16,
+                                  color: theme.dividerColor.withValues(
+                                    alpha: 0.36,
+                                  ),
+                                ),
+                            itemBuilder: (_, i) {
+                              final album = widget.albums[i];
+                              final selected =
+                                  album.id == widget.selectedAlbumId;
+                              final progress = _itemProgress(i);
+                              return Opacity(
+                                opacity:
+                                    (progress * 1.8).clamp(0.0, 1.0).toDouble(),
+                                child: Transform.translate(
+                                  offset: Offset(
+                                    0,
+                                    -_itemSlideIn * (1 - progress),
+                                  ),
+                                  child: SizedBox(
+                                    height: _itemHeight,
+                                    child: ListTile(
+                                      title: Text(
+                                        album.name,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          color:
+                                              selected
+                                                  ? theme.colorScheme.primary
+                                                  : theme.colorScheme.onSurface,
                                         ),
-                                        selected: selected,
-                                        selectedTileColor: Colors.transparent,
-                                        onTap: () => onSelect(album),
                                       ),
+                                      selected: selected,
+                                      selectedTileColor: Colors.transparent,
+                                      onTap: () => widget.onSelect(album),
                                     ),
-                                  );
-                                },
-                              ),
-                            ),
+                                  ),
+                                ),
+                              );
+                            },
                           ),
                         ),
                       ),
